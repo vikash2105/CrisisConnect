@@ -1,12 +1,24 @@
-// backend/models/Incident.js
-
 const mongoose = require('mongoose');
 
 const IncidentSchema = new mongoose.Schema({
   category: {
     type: String,
     required: true,
-    enum: ['Fire', 'Flood', 'Power Outage', 'Accident', 'Medical Emergency', 'Other']
+    enum: [
+      'Fire',
+      'Flood',
+      'Power Outage',
+      'Accident',
+      'Medical Emergency',
+      'Blood Donation',
+      'Food & Water Aid',
+      'Shelter Help',
+      'Elderly Support',
+      'Lost Pet',
+      'Cleanup Drive',
+      'Community Support',
+      'Other'
+    ]
   },
   description: { type: String, required: true },
   address: { type: String, required: true }, // Moved address to be a top-level field

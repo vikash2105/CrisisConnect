@@ -1,5 +1,3 @@
-// File: routes/locationsRoutes.js (Local File Version)
-
 const express = require("express");
 const router = express.Router();
 const fs = require("fs");

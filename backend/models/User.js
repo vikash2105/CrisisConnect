@@ -11,7 +11,15 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   phone: { type: String, required: true },
   password: { type: String, required: true },
-  serviceLocations: { type: [locationSchema], default: [] }
+  bio: { type: String, default: '' },
+  skills: { type: String, default: '' },
+  serviceLocations: { type: [locationSchema], default: [] },
+  notifications: {
+    emergencyAlerts: { type: Boolean, default: true },
+    volunteerRequests: { type: Boolean, default: true },
+    statusUpdates: { type: Boolean, default: true },
+    weeklyDigest: { type: Boolean, default: false }
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', UserSchema);

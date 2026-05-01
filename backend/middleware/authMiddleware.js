@@ -1,5 +1,3 @@
-// backend/middleware/authMiddleware.js
-
 const jwt = require('jsonwebtoken');
 
 const authMiddleware = (req, res, next) => {
@@ -11,7 +9,8 @@ const authMiddleware = (req, res, next) => {
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const secret = process.env.JWT_SECRET || 'secretkey';
+    const decoded = jwt.verify(token, secret);
     req.user = decoded; // Adds { id: userId } to the request object
     next();
   } catch (ex) {
