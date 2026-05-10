@@ -1,0 +1,236 @@
+{
+  "info": {
+    "name": "CrisisConnect API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Register (Locations Required)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fullname\": \"Test User\",\n  \"email\": \"testuser@example.com\",\n  \"phone\": \"9876543210\",\n  \"password\": \"password123\",\n  \"serviceLocations\": [\n    { \"state\": \"Maharashtra\", \"district\": \"Pune\", \"city\": \"Hadapsar\" }\n  ]\n}"
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/auth/register",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api","auth","register"]
+        }
+      }
+    },
+    {
+      "name": "Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"password\": \"password123\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/auth/login",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api","auth","login"]
+        }
+      }
+    },
+    {
+      "name": "Get States",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:5000/api/locations/states",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api","locations","states"]
+        }
+      }
+    },
+    {
+      "name": "Get Districts",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:5000/api/locations/districts/Maharashtra",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api","locations","districts","Maharashtra"]
+        }
+      }
+    },
+    {
+      "name": "Get Cities",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:5000/api/locations/cities/Maharashtra/Pune",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api","locations","cities","Maharashtra","Pune"]
+        }
+      }
+    },
+    {
+      "name": "Get Reported Incidents",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "http://localhost:5000/api/contributions/reported",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api","contributions","reported"]
+        }
+      }
+    },
+    {
+      "name": "Get Volunteered Incidents",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "http://localhost:5000/api/contributions/volunteered",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api","contributions","volunteered"]
+        }
+      }
+    },
+    {
+      "name": "Get Contribution Stats",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "http://localhost:5000/api/contributions/stats",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api","contributions","stats"]
+        }
+      }
+    },
+    {
+      "name": "Volunteer for Incident",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "http://localhost:5000/api/contributions/volunteer/{{incidentId}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api","contributions","volunteer","{{incidentId}}"]
+        }
+      }
+    },
+    {
+      "name": "Unvolunteer from Incident",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "http://localhost:5000/api/contributions/volunteer/{{incidentId}}",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api","contributions","volunteer","{{incidentId}}"]
+        }
+      }
+    },
+    {
+      "name": "Get Profile",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "http://localhost:5000/api/profile",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api","profile"]
+        }
+      }
+    },
+    {
+      "name": "Update Profile",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fullname\": \"John Doe Updated\",\n  \"phone\": \"9876543210\",\n  \"bio\": \"Community volunteer passionate about helping neighbors\",\n  \"skills\": \"First Aid, CPR, Emergency Response\",\n  \"notifications\": {\n    \"emergencyAlerts\": true,\n    \"volunteerRequests\": true,\n    \"statusUpdates\": true,\n    \"weeklyDigest\": false\n  }\n}"
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/profile",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api","profile"]
+        }
+      }
+    },
+    {
+      "name": "Volunteer for Incident (Incidents Route)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "http://localhost:5000/api/incidents/{{incidentId}}/volunteer",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api","incidents","{{incidentId}}","volunteer"]
+        }
+      }
+    },
+    {
+      "name": "Unvolunteer from Incident (Incidents Route)",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" }
+        ],
+        "url": {
+          "raw": "http://localhost:5000/api/incidents/{{incidentId}}/volunteer",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api","incidents","{{incidentId}}","volunteer"]
+        }
+      }
+    }
+  ]
+}
