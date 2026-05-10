@@ -23,7 +23,13 @@ const getReportedIncidents = async (req, res) => {
       responseTime: getResponseTime(incident),
       coordinates: incident.location.coordinates,
       imageUrl: incident.imageUrl,
-      volunteers: incident.volunteers.length
+      volunteers: incident.volunteers.length,
+      trustScore: incident.trustScore,
+      verificationStatus: incident.verificationStatus,
+      activeUntil: incident.activeUntil,
+      isExpired: incident.isExpired,
+      communityConfidence: incident.communityConfidence,
+      communityVerification: incident.communityVerification
     }));
     
     res.json(transformedIncidents);
@@ -54,7 +60,13 @@ const getVolunteeredIncidents = async (req, res) => {
       hoursContributed: calculateHoursContributed(incident),
       impact: calculateImpact(incident),
       coordinates: incident.location.coordinates,
-      imageUrl: incident.imageUrl
+      imageUrl: incident.imageUrl,
+      trustScore: incident.trustScore,
+      verificationStatus: incident.verificationStatus,
+      activeUntil: incident.activeUntil,
+      isExpired: incident.isExpired,
+      communityConfidence: incident.communityConfidence,
+      communityVerification: incident.communityVerification
     }));
     
     res.json(transformedIncidents);
@@ -355,4 +367,3 @@ module.exports = {
   unvolunteerFromIncident,
   deleteIncident
 };
-

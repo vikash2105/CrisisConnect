@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button.jsx"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card.jsx"
 import { Badge } from "@/components/ui/badge.jsx"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.jsx"
-import { MapPin, Clock, Heart, CheckCircle, Navigation, Loader2, Zap, TrendingUp } from "lucide-react"
+import { MapPin, Clock, Heart, CheckCircle, Navigation, Loader2, Zap, TrendingUp, ShieldCheck, AlertTriangle, Timer, ThumbsUp, Flag, Ban } from "lucide-react"
 import { Footer } from "@/components/footer.jsx"
 import { useToast } from "@/hooks/use-toast.js"
 import { formatDistanceToNow } from "date-fns"
@@ -71,6 +71,34 @@ const getStatusColor = (status) => {
   }
 }
 
+const getVerificationBadge = (incident) => {
+  if (incident.isExpired || (incident.activeUntil && new Date(incident.activeUntil).getTime() <= Date.now())) {
+    return { label: "Expired", className: "bg-muted text-muted-foreground", icon: Timer }
+  }
+
+  switch (incident.verificationStatus) {
+    case "verified":
+      return { label: "Verified", className: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300", icon: ShieldCheck }
+    case "suspicious":
+      return { label: "Suspicious", className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300", icon: AlertTriangle }
+    case "outdated":
+      return { label: "Outdated", className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300", icon: Timer }
+    default:
+      return { label: "Partially Verified", className: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300", icon: ShieldCheck }
+  }
+}
+
+const getTimeRemaining = (activeUntil) => {
+  if (!activeUntil) return "No expiry set"
+  const diff = new Date(activeUntil).getTime() - Date.now()
+  if (diff <= 0) return "Expired"
+
+  const hours = Math.floor(diff / (1000 * 60 * 60))
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+  if (hours > 0) return `${hours}h ${minutes}m left`
+  return `${minutes}m left`
+}
+
 export default function HomePage() {
   const router = useRouter()
   const { toast } = useToast()
@@ -84,6 +112,7 @@ export default function HomePage() {
   const [selectedIncident, setSelectedIncident] = useState(null)
   const [showVolunteerModal, setShowVolunteerModal] = useState(false)
   const [isVolunteering, setIsVolunteering] = useState(false)
+  const [verificationLoadingId, setVerificationLoadingId] = useState(null)
   const [currentUserId, setCurrentUserId] = useState(null)
   const [mapCenter, setMapCenter] = useState([28.5355, 77.3910])
 
@@ -213,6 +242,12 @@ export default function HomePage() {
       })
     })
 
+    socket.on("incident-updated", (updatedIncident) => {
+      setIncidents((prevIncidents) =>
+        prevIncidents.map((incident) => (incident._id === updatedIncident._id ? updatedIncident : incident))
+      )
+    })
+
     socket.on("disconnect", () => {
       console.log("WebSocket disconnected")
     })
@@ -266,6 +301,39 @@ export default function HomePage() {
       setIsVolunteering(false)
       setShowVolunteerModal(false)
       setSelectedIncident(null)
+    }
+  }
+
+  const submitVerificationVote = async (incidentId, vote) => {
+    const token = localStorage.getItem("token")
+    setVerificationLoadingId(`${incidentId}-${vote}`)
+
+    try {
+      if (!token) throw new Error("Authentication error. Please log in again.")
+
+      const response = await fetch(`${API_URL}/api/incidents/${incidentId}/verify`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ vote }),
+      })
+
+      if (!response.ok) {
+        throw new Error(await getApiErrorMessage(response, "Could not record verification vote."))
+      }
+
+      const data = await response.json()
+      if (data.incident) {
+        setIncidents((prev) => prev.map((incident) => (incident._id === incidentId ? data.incident : incident)))
+      }
+
+      toast({ title: "Verification recorded", description: "Thanks for helping the community assess this report." })
+    } catch (err) {
+      toast({ title: "Verification Failed", description: getNetworkErrorMessage(err, "Failed to verify report."), variant: "destructive" })
+    } finally {
+      setVerificationLoadingId(null)
     }
   }
 
@@ -516,6 +584,9 @@ export default function HomePage() {
                   incidents.map((incident, index) => {
                     const severity = getSeverity(incident.category)
                     const isUserVolunteering = currentUserId ? incident.volunteers.includes(currentUserId) : false
+                    const verificationBadge = getVerificationBadge(incident)
+                    const VerificationIcon = verificationBadge.icon
+                    const community = incident.communityVerification || {}
                     
                     return (
                       <motion.div 
@@ -539,6 +610,10 @@ export default function HomePage() {
                               <Badge variant="outline" className={getStatusColor(incident.status)}>
                                 {incident.status}
                               </Badge>
+                              <Badge variant="outline" className={verificationBadge.className}>
+                                <VerificationIcon className="mr-1 h-3 w-3" />
+                                {verificationBadge.label}
+                              </Badge>
                             </div>
                           </div>
                           {incident.imageUrl && (
@@ -560,6 +635,70 @@ export default function HomePage() {
                               <Clock className="h-3 w-3" /> 
                               {formatDistanceToNow(new Date(incident.createdAt), { addSuffix: true })}
                             </span>
+                          </div>
+                          <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                                <ShieldCheck className="h-4 w-4 text-accent" />
+                                Trust score
+                              </div>
+                              <span className="text-xs font-semibold text-foreground">{incident.trustScore ?? 35}%</span>
+                            </div>
+                            <div className="h-2 overflow-hidden rounded-full bg-muted">
+                              <div
+                                className={`h-full rounded-full ${
+                                  (incident.trustScore ?? 35) >= 80
+                                    ? "bg-green-500"
+                                    : (incident.trustScore ?? 35) >= 45
+                                    ? "bg-yellow-500"
+                                    : "bg-red-500"
+                                }`}
+                                style={{ width: `${Math.max(0, Math.min(100, incident.trustScore ?? 35))}%` }}
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Timer className="h-3 w-3" />
+                                {getTimeRemaining(incident.activeUntil)}
+                              </span>
+                              <span className="text-right">
+                                Community {incident.communityConfidence || 0}%
+                              </span>
+                              <span>{community.confirmed || 0} confirmed</span>
+                              <span className="text-right">{(community.misleading || 0) + (community.fakeOutdated || 0)} disputed</span>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={verificationLoadingId === `${incident._id}-confirmed`}
+                              onClick={() => submitVerificationVote(incident._id, "confirmed")}
+                              className="h-8 text-xs"
+                            >
+                              <ThumbsUp className="mr-1 h-3 w-3" />
+                              Confirmed
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={verificationLoadingId === `${incident._id}-misleading`}
+                              onClick={() => submitVerificationVote(incident._id, "misleading")}
+                              className="h-8 text-xs"
+                            >
+                              <Flag className="mr-1 h-3 w-3" />
+                              Misleading
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={verificationLoadingId === `${incident._id}-fake_outdated`}
+                              onClick={() => submitVerificationVote(incident._id, "fake_outdated")}
+                              className="h-8 text-xs"
+                            >
+                              <Ban className="mr-1 h-3 w-3" />
+                              Fake
+                            </Button>
                           </div>
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">

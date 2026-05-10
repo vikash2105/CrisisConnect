@@ -17,6 +17,14 @@ import Link from "next/link"
 import dynamic from "next/dynamic"
 import { API_URL } from "@/lib/config"
 import { getApiErrorMessage, getNetworkErrorMessage } from "@/lib/apiError"
+import {
+  compressReportImage,
+  extractImageMetadata,
+  getCurrentBrowserLocation,
+  getImageWarnings,
+  haversineKm,
+  GPS_MATCH_THRESHOLD_KM,
+} from "@/lib/reportVerification"
 
 // Dynamically import LocationSelectorMap
 const LocationSelectorMap = dynamic(() => import("@/components/LocationSelectorMap.jsx"), {
@@ -50,6 +58,13 @@ export default function ReportPage() {
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+  const [browserLocation, setBrowserLocation] = useState(null)
+  const [locationError, setLocationError] = useState("")
+  const [photoSource, setPhotoSource] = useState("unknown")
+  const [imageMetadata, setImageMetadata] = useState(null)
+  const [imageWarnings, setImageWarnings] = useState([])
+  const livePhotoInputRef = useRef(null)
+  const galleryInputRef = useRef(null)
   const [formData, setFormData] = useState({
     category: "",
     description: "",
@@ -62,6 +77,19 @@ export default function ReportPage() {
   const [isRecording, setIsRecording] = useState(false)
   const recognitionRef = useRef(null)
   const [selectedLocation, setSelectedLocation] = useState(null) // { lat, lng, address } | null
+
+  const refreshBrowserLocation = async () => {
+    setLocationError("")
+    try {
+      const location = await getCurrentBrowserLocation()
+      setBrowserLocation(location)
+      return location
+    } catch (error) {
+      const message = error?.message || "Location permission is required to submit an emergency report."
+      setLocationError(message)
+      throw new Error(message)
+    }
+  }
 
   const handleVoiceInput = () => {
     if (isRecording) {
@@ -167,6 +195,7 @@ export default function ReportPage() {
     try {
       const token = localStorage.getItem("token")
       if (!token) throw new Error("You must be logged in to submit a report.")
+      if (!formData.media) throw new Error("Please take a live photo or upload an existing image.")
 
       // Coordinates: use selected or geocode
       let coordinates
@@ -185,11 +214,24 @@ export default function ReportPage() {
         coordinates = [parseFloat(lon), parseFloat(lat)]
       }
 
+      const liveLocation = browserLocation || (await refreshBrowserLocation())
+      const selectedDistance = haversineKm(liveLocation, { latitude: coordinates[1], longitude: coordinates[0] })
+      if (selectedDistance !== null && selectedDistance > GPS_MATCH_THRESHOLD_KM) {
+        toast({
+          title: "Location Mismatch",
+          description: "Your live GPS is far from the selected incident location. The report will be reviewed with a lower trust score.",
+          variant: "destructive",
+        })
+      }
+
       const dataToSubmit = new FormData()
       dataToSubmit.append("category", formData.category)
       dataToSubmit.append("description", formData.description)
       dataToSubmit.append("address", formData.address)
       dataToSubmit.append("coordinates", JSON.stringify(coordinates))
+      dataToSubmit.append("browserLocation", JSON.stringify(liveLocation))
+      dataToSubmit.append("captureSource", photoSource)
+      if (imageMetadata) dataToSubmit.append("clientImageMetadata", JSON.stringify(imageMetadata))
       if (formData.media) dataToSubmit.append("media", formData.media)
 
       const response = await fetch(`${API_URL}/api/incidents`, {
@@ -218,9 +260,29 @@ export default function ReportPage() {
     }
   }
 
-  const handleMediaUpload = (e) => {
+  const handleMediaUpload = async (e, source = "gallery") => {
     const file = e.target.files?.[0]
-    if (file) setFormData((prev) => ({ ...prev, media: file }))
+    if (!file) return
+
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Unsupported File", description: "Please select an image file.", variant: "destructive" })
+      return
+    }
+
+    try {
+      const metadata = await extractImageMetadata(file)
+      const compressedFile = await compressReportImage(file)
+      setPhotoSource(source)
+      setImageMetadata(metadata)
+      setImageWarnings(getImageWarnings(metadata))
+      setFormData((prev) => ({ ...prev, media: compressedFile || file }))
+    } catch (error) {
+      toast({
+        title: "Image Processing Failed",
+        description: error?.message || "Could not prepare the selected image.",
+        variant: "destructive",
+      })
+    }
   }
 
   return (
@@ -451,12 +513,46 @@ export default function ReportPage() {
                     <Clock className="h-3 w-3" />
                     Be as specific as possible (street address, building name, landmarks, etc.)
                   </motion.p>
+
+                  <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">Live GPS Verification *</p>
+                        <p className="text-xs text-muted-foreground">Required before submission to confirm your current location.</p>
+                      </div>
+                      <Button type="button" variant="outline" onClick={refreshBrowserLocation} className="shrink-0">
+                        <MapPin className="mr-2 h-4 w-4" />
+                        Verify GPS
+                      </Button>
+                    </div>
+
+                    {browserLocation && (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                        <div className="rounded-lg bg-background border border-border p-3">
+                          <p className="font-semibold text-foreground">Live Location</p>
+                          <p className="text-muted-foreground mt-1">
+                            {browserLocation.latitude.toFixed(5)}, {browserLocation.longitude.toFixed(5)}
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-background border border-border p-3">
+                          <p className="font-semibold text-foreground">Accuracy</p>
+                          <p className="text-muted-foreground mt-1">+/-{Math.round(browserLocation.accuracy || 0)} m</p>
+                        </div>
+                        <div className="rounded-lg bg-background border border-border p-3">
+                          <p className="font-semibold text-foreground">Status</p>
+                          <p className="text-green-600 dark:text-green-400 mt-1">Ready</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {locationError && <p className="text-sm text-destructive">{locationError}</p>}
+                  </div>
                 </motion.div>
 
                 {/* Media Upload */}
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }} className="space-y-3">
                   <Label htmlFor="media" className="text-foreground font-semibold">
-                    Upload Photo (Optional)
+                    Verification Photo *
                   </Label>
 
                   <motion.div
@@ -465,8 +561,24 @@ export default function ReportPage() {
                       formData.media ? "border-green-500/50 bg-green-50/50 dark:bg-green-900/10" : "border-border hover:border-primary/50 hover:bg-accent/5"
                     }`}
                   >
-                    <input id="media" type="file" accept="image/*" onChange={handleMediaUpload} className="hidden" />
-                    <label htmlFor="media" className="cursor-pointer block">
+                    <input
+                      ref={livePhotoInputRef}
+                      id="media-live"
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={(e) => handleMediaUpload(e, "camera")}
+                      className="hidden"
+                    />
+                    <input
+                      ref={galleryInputRef}
+                      id="media-gallery"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleMediaUpload(e, "gallery")}
+                      className="hidden"
+                    />
+                    <div className="block">
                       <div className="flex flex-col items-center gap-4">
                         {formData.media ? (
                           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex flex-col items-center gap-3">
@@ -479,7 +591,9 @@ export default function ReportPage() {
                             </motion.div>
                             <div className="text-center">
                               <p className="text-sm font-semibold text-green-700 dark:text-green-400">{formData.media.name}</p>
-                              <p className="text-xs text-muted-foreground mt-1">Click to change file</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {photoSource === "camera" ? "Live Photo" : "Gallery Upload"}
+                              </p>
                             </div>
                           </motion.div>
                         ) : (
@@ -492,14 +606,72 @@ export default function ReportPage() {
                               <Camera className="h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors" />
                             </motion.div>
                             <div className="text-center">
-                              <p className="text-base font-semibold text-foreground group-hover:text-primary transition-colors">Upload Photo</p>
-                              <p className="text-sm text-muted-foreground mt-1">Photos help responders understand the situation better</p>
+                              <p className="text-base font-semibold text-foreground group-hover:text-primary transition-colors">Take a live photo for higher trust</p>
+                              <p className="text-sm text-muted-foreground mt-1">Existing photos are allowed, but may receive a lower trust score.</p>
                             </div>
                           </motion.div>
                         )}
                       </div>
-                    </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
+                        <Button type="button" onClick={() => livePhotoInputRef.current?.click()} className="h-11">
+                          <Camera className="mr-2 h-4 w-4" />
+                          Take Live Photo
+                        </Button>
+                        <Button type="button" variant="outline" onClick={() => galleryInputRef.current?.click()} className="h-11">
+                          <Upload className="mr-2 h-4 w-4" />
+                          Upload Existing Photo
+                        </Button>
+                      </div>
+                    </div>
                   </motion.div>
+
+                  {formData.media && (
+                    <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <span
+                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                            photoSource === "camera"
+                              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                              : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300"
+                          }`}
+                        >
+                          {photoSource === "camera" ? "Live Photo" : "Gallery Upload"}
+                        </span>
+                        {imageMetadata?.timestamp && (
+                          <span className="text-xs text-muted-foreground">
+                            Captured {new Date(imageMetadata.timestamp).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div className="rounded-lg border border-border bg-background p-3">
+                          <p className="font-semibold text-foreground">EXIF GPS</p>
+                          <p className="text-muted-foreground mt-1">
+                            {imageMetadata?.gps
+                              ? `${imageMetadata.gps.latitude.toFixed(5)}, ${imageMetadata.gps.longitude.toFixed(5)}`
+                              : "Unavailable"}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-border bg-background p-3">
+                          <p className="font-semibold text-foreground">Device</p>
+                          <p className="text-muted-foreground mt-1">
+                            {[imageMetadata?.make, imageMetadata?.model].filter(Boolean).join(" ") || "Unavailable"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {imageWarnings.length > 0 && (
+                        <div className="space-y-1">
+                          {imageWarnings.map((warning) => (
+                            <p key={warning} className="text-sm text-yellow-700 dark:text-yellow-300">
+                              {warning}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </motion.div>
 
                 {/* Map */}

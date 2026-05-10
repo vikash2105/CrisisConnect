@@ -5,6 +5,15 @@ const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
 const Incident = require('../models/Incident');
 const authMiddleware = require('../middleware/authMiddleware');
+const {
+  calculateCommunityStats,
+  calculateTrustScore,
+  extractExifFromBuffer,
+  getActiveUntil,
+  getExpiryState,
+  parseJsonField,
+  sanitizeLocation
+} = require('../utils/incidentVerification');
 
 // --- CLOUDINARY CONFIGURATION ---
 // This automatically uses the keys from your .env file
@@ -17,7 +26,18 @@ cloudinary.config({
 // --- MULTER CONFIGURATION ---
 // We use memoryStorage to temporarily hold the file as a buffer
 const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 8 * 1024 * 1024
+  },
+  fileFilter: (req, file, cb) => {
+    if (!file.mimetype || !file.mimetype.startsWith('image/')) {
+      return cb(new Error('Only image uploads are allowed'));
+    }
+    cb(null, true);
+  }
+});
 
 // --- CLOUDINARY UPLOAD HELPER FUNCTION ---
 const uploadToCloudinary = (fileBuffer) => {
@@ -46,6 +66,51 @@ router.post('/', authMiddleware, upload.single('media'), async (req, res) => {
   try {
     const { category, description, address, coordinates } = req.body;
     let imageUrl = null;
+    const parsedCoordinates = JSON.parse(coordinates);
+    const incidentLocation = {
+      longitude: Number(parsedCoordinates[0]),
+      latitude: Number(parsedCoordinates[1])
+    };
+    const browserLocation = sanitizeLocation(parseJsonField(req.body.browserLocation));
+    const captureSource = ['camera', 'gallery'].includes(req.body.captureSource) ? req.body.captureSource : 'unknown';
+
+    if (!browserLocation) {
+      return res.status(400).json({ message: 'Browser geolocation is required to submit an emergency report.' });
+    }
+
+    if (!Number.isFinite(incidentLocation.longitude) || !Number.isFinite(incidentLocation.latitude)) {
+      return res.status(400).json({ message: 'Valid incident coordinates are required.' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ message: 'A photo is required for trust verification.' });
+    }
+
+    const recentDuplicate = await Incident.findOne({
+      reportedBy: req.user.id,
+      category,
+      createdAt: { $gte: new Date(Date.now() - 10 * 60 * 1000) },
+      status: { $ne: 'Resolved' },
+      location: {
+        $near: {
+          $geometry: { type: 'Point', coordinates: parsedCoordinates },
+          $maxDistance: 100
+        }
+      }
+    });
+
+    if (recentDuplicate) {
+      return res.status(429).json({ message: 'A similar report was submitted recently from this location.' });
+    }
+
+    const imageExif = extractExifFromBuffer(req.file.buffer);
+    const trust = calculateTrustScore({
+      captureSource,
+      imageExif,
+      incidentLocation,
+      browserLocation,
+      reportedByUser: req.user.id
+    });
 
     // 1. Check if a file was uploaded
     if (req.file) {
@@ -65,19 +130,25 @@ router.post('/', authMiddleware, upload.single('media'), async (req, res) => {
       }
     }
 
-    // When using FormData, numbers and objects are sent as strings. We need to parse them.
-    const parsedCoordinates = JSON.parse(coordinates);
-
     // 4. Create a new incident with all the data
     const incident = new Incident({
-      category,
-      description,
-      address,
+      category: String(category || '').trim(),
+      description: String(description || '').trim(),
+      address: String(address || '').trim(),
       location: {
         type: 'Point',
         coordinates: parsedCoordinates
       },
       imageUrl: imageUrl, // Add the image URL here (will be null if no file was uploaded)
+      captureSource,
+      browserLocation,
+      imageExif,
+      imageTimestamp: imageExif.timestamp,
+      imageGPS: imageExif.gps,
+      activeUntil: getActiveUntil(category),
+      trustScore: trust.trustScore,
+      verificationStatus: trust.verificationStatus,
+      verificationReasons: trust.verificationReasons,
       reportedBy: req.user.id
     });
 
@@ -95,6 +166,12 @@ router.post('/', authMiddleware, upload.single('media'), async (req, res) => {
     res.status(201).json(incident);
   } catch (error) {
     console.error("Error reporting incident:", error);
+    if (error instanceof SyntaxError) {
+      return res.status(400).json({ message: 'Invalid report location payload.' });
+    }
+    if (error.message === 'Only image uploads are allowed') {
+      return res.status(400).json({ message: error.message });
+    }
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
@@ -119,11 +196,75 @@ router.get('/nearby', authMiddleware, async (req, res) => {
                     $maxDistance: maxDistance
                 }
             },
-            status: { $ne: 'Resolved' }
+            status: { $ne: 'Resolved' },
+            $or: [
+                { activeUntil: { $exists: false } },
+                { activeUntil: { $gt: new Date() } }
+            ],
+            isExpired: { $ne: true }
         }).populate('reportedBy', 'fullname').sort({ createdAt: -1 });
 
         res.json(incidents);
     } catch (error) { // --- THIS IS THE CORRECTED BLOCK ---
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// POST /api/incidents/:id/verify - Community verification vote
+router.post('/:id/verify', authMiddleware, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { vote } = req.body;
+        const allowedVotes = ['confirmed', 'misleading', 'fake_outdated'];
+
+        if (!allowedVotes.includes(vote)) {
+            return res.status(400).json({ message: 'Invalid verification vote.' });
+        }
+
+        const incident = await Incident.findById(req.params.id);
+        if (!incident) {
+            return res.status(404).json({ message: 'Incident not found' });
+        }
+
+        if (incident.reportedBy && incident.reportedBy.toString() === userId.toString()) {
+            return res.status(400).json({ message: 'You cannot verify your own report.' });
+        }
+
+        const existingVote = incident.verificationVotes.find((entry) => entry.user.toString() === userId.toString());
+        if (existingVote) {
+            existingVote.vote = vote;
+            existingVote.createdAt = new Date();
+        } else {
+            incident.verificationVotes.push({ user: userId, vote });
+        }
+
+        const community = calculateCommunityStats(incident.verificationVotes);
+        incident.communityVerification = community.communityVerification;
+        incident.communityConfidence = community.communityConfidence;
+
+        const expiry = getExpiryState(incident);
+        incident.activeUntil = expiry.activeUntil;
+        incident.isExpired = expiry.isExpired;
+
+        await incident.save();
+
+        const populated = await Incident.findById(incident._id)
+          .populate('reportedBy', 'fullname email')
+          .populate('volunteers', 'fullname email');
+
+        try {
+            const io = req.app.get('io');
+            if (io) io.emit('incident-updated', populated);
+        } catch (e) {
+            console.warn('WS emit failed (verification vote):', e?.message);
+        }
+
+        res.json({
+            message: 'Verification vote recorded',
+            incident: populated
+        });
+    } catch (error) {
+        console.error('Error recording verification vote:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });

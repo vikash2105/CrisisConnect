@@ -13,6 +13,7 @@ const userLocationRoutes = require("./routes/userLocationRoutes");
 const incidentRoutes = require("./routes/incidentRoutes");
 const contributionRoutes = require("./routes/contributionRoutes");
 const profileRoutes = require("./routes/profileRoutes");
+const Incident = require("./models/Incident");
 
 // Import Rate Limiters
 const { apiLimiter, authLimiter, incidentLimiter } = require("./middleware/rateLimiter");
@@ -100,12 +101,39 @@ app.use("/api/user-locations", userLocationRoutes);
 app.use("/api/contributions", contributionRoutes);
 app.use("/api/profile", profileRoutes);
 
+async function expireStaleIncidents() {
+  try {
+    const result = await Incident.updateMany(
+      {
+        isExpired: { $ne: true },
+        activeUntil: { $lte: new Date() },
+        status: { $ne: "Resolved" },
+      },
+      { $set: { isExpired: true } }
+    );
+
+    if (result.modifiedCount > 0) {
+      console.log(`[Expiry] Archived ${result.modifiedCount} expired incident reports`);
+    }
+  } catch (error) {
+    console.error("[Expiry] Failed to archive expired incidents:", error.message);
+  }
+}
+
 // ================= ERROR HANDLING =================
 app.use((err, req, res, next) => {
   console.error(`[API] ${req.method} ${req.originalUrl} error:`, err.message);
 
   if (err.message && err.message.startsWith("CORS blocked origin")) {
     return res.status(403).json({ message: "CORS origin is not allowed" });
+  }
+
+  if (err.code === "LIMIT_FILE_SIZE") {
+    return res.status(400).json({ message: "Image is too large. Please upload an image under 8 MB." });
+  }
+
+  if (err.message === "Only image uploads are allowed") {
+    return res.status(400).json({ message: err.message });
   }
 
   return res.status(500).json({ message: "Server error" });
@@ -134,6 +162,8 @@ async function startServer() {
     console.log("[MongoDB] Connecting...");
     await mongoose.connect(MONGO_URI);
     console.log("[MongoDB] Connected successfully");
+    await expireStaleIncidents();
+    setInterval(expireStaleIncidents, 15 * 60 * 1000);
 
     server.listen(PORT, () => {
       console.log(`[Server] Running on port ${PORT}`);
