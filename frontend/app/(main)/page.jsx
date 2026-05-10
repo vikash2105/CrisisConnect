@@ -14,11 +14,8 @@ import { formatDistanceToNow } from "date-fns"
 import dynamic from "next/dynamic"
 import { io } from "socket.io-client"
 import { getProfile } from "@/lib/profileApi.js"
-<<<<<<< HEAD
 import { API_URL } from "@/lib/config"
 import { getApiErrorMessage, getNetworkErrorMessage } from "@/lib/apiError"
-=======
->>>>>>> 094577356ad464c43002570066975adc57e46fb2
 
 // Dynamically import Map component
 const Map = dynamic(() => import("@/components/Map.jsx"), { 
@@ -148,11 +145,6 @@ export default function HomePage() {
         return
       }
 
-<<<<<<< HEAD
-=======
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
-
->>>>>>> 094577356ad464c43002570066975adc57e46fb2
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords
@@ -165,22 +157,13 @@ export default function HomePage() {
             )
             
             if (!response.ok) {
-<<<<<<< HEAD
               throw new Error(await getApiErrorMessage(response, "Failed to fetch incidents."))
-=======
-              const errorData = await response.json()
-              throw new Error(errorData.message || "Failed to fetch incidents.")
->>>>>>> 094577356ad464c43002570066975adc57e46fb2
             }
             
             const data = await response.json()
             setIncidents(data)
           } catch (err) {
-<<<<<<< HEAD
             const message = getNetworkErrorMessage(err, "Failed to fetch incidents.")
-=======
-            const message = (err && err.message) || "Failed to fetch incidents."
->>>>>>> 094577356ad464c43002570066975adc57e46fb2
             if (String(message).toLowerCase().includes("token")) {
               localStorage.removeItem("token")
               localStorage.removeItem("isAuthenticated")
@@ -208,10 +191,6 @@ export default function HomePage() {
   useEffect(() => {
     if (!isAuthenticated) return
 
-<<<<<<< HEAD
-=======
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
->>>>>>> 094577356ad464c43002570066975adc57e46fb2
     const socket = io(API_URL)
 
     socket.on("connect", () => {
@@ -253,10 +232,6 @@ export default function HomePage() {
     if (!selectedIncident) return
     setIsVolunteering(true)
     const token = localStorage.getItem("token")
-<<<<<<< HEAD
-=======
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
->>>>>>> 094577356ad464c43002570066975adc57e46fb2
     
     try {
       if (!token) throw new Error("Authentication error. Please log in again.")
@@ -270,12 +245,7 @@ export default function HomePage() {
       )
       
       if (!response.ok) {
-<<<<<<< HEAD
         throw new Error(await getApiErrorMessage(response, "Could not volunteer for the incident."))
-=======
-        const errorData = await response.json()
-        throw new Error(errorData.message || "Could not volunteer for the incident.")
->>>>>>> 094577356ad464c43002570066975adc57e46fb2
       }
       
       setIncidents((prev) =>
@@ -291,11 +261,7 @@ export default function HomePage() {
         description: `You've been assigned to help with the ${selectedIncident.category.toLowerCase()} incident.`,
       })
     } catch (err) {
-<<<<<<< HEAD
       toast({ title: "Error", description: getNetworkErrorMessage(err, "Failed to volunteer."), variant: "destructive" })
-=======
-      toast({ title: "Error", description: (err && err.message) || "Failed to volunteer.", variant: "destructive" })
->>>>>>> 094577356ad464c43002570066975adc57e46fb2
     } finally {
       setIsVolunteering(false)
       setShowVolunteerModal(false)

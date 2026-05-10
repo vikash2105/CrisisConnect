@@ -1,11 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-<<<<<<< HEAD
 import { API_URL } from "@/lib/config"
 import { BACKEND_UNAVAILABLE_MESSAGE, getApiErrorMessage } from "@/lib/apiError"
-=======
->>>>>>> 094577356ad464c43002570066975adc57e46fb2
 
 // --- Helper Components ---
 
@@ -186,36 +183,21 @@ const LoginPage = ({ onSwitchToCreate, handleAuthSuccess }) => {
 
     setIsLoading(true)
     try {
-<<<<<<< HEAD
       const response = await fetch(`${API_URL}/api/auth/login`, {
-=======
-      const response = await fetch(`/api/auth/login`, {
->>>>>>> 094577356ad464c43002570066975adc57e46fb2
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       })
-<<<<<<< HEAD
       if (!response.ok) {
         const message = await getApiErrorMessage(response, "Unable to sign in.")
         setErrors({ api: message })
       } else {
         const data = await response.json()
-=======
-      const data = await response.json()
-      if (!response.ok) {
-        setErrors({ api: data.message || "An unknown error occurred." })
-      } else {
->>>>>>> 094577356ad464c43002570066975adc57e46fb2
         handleAuthSuccess(data)
       }
     } catch (error) {
       console.error("Login failed:", error)
-<<<<<<< HEAD
       setErrors({ api: BACKEND_UNAVAILABLE_MESSAGE })
-=======
-      setErrors({ api: "Could not connect to the server. Please try again." })
->>>>>>> 094577356ad464c43002570066975adc57e46fb2
     } finally {
       setIsLoading(false)
     }
@@ -343,11 +325,7 @@ const CreateAccountPage = ({ onSwitchToLogin, handleAuthSuccess }) => {
   useEffect(() => {
     const fetchStates = async () => {
       try {
-<<<<<<< HEAD
         const response = await fetch(`${API_URL}/api/locations/states`)
-=======
-        const response = await fetch(`/api/locations/states`)
->>>>>>> 094577356ad464c43002570066975adc57e46fb2
         if (!response.ok) {
           const errorText = await response.text()
           throw new Error(`Failed to fetch states: ${response.status} ${errorText}`)
@@ -403,11 +381,7 @@ const CreateAccountPage = ({ onSwitchToLogin, handleAuthSuccess }) => {
       setCities((prev) => ({ ...prev, [index]: [] }))
       if (value) {
         try {
-<<<<<<< HEAD
           const res = await fetch(`${API_URL}/api/locations/districts/${encodeURIComponent(value)}`)
-=======
-          const res = await fetch(`/api/locations/districts/${value}`)
->>>>>>> 094577356ad464c43002570066975adc57e46fb2
           if (!res.ok) throw new Error("Failed to fetch districts")
           const data = await res.json()
           setDistricts((prev) => ({ ...prev, [index]: data || [] }))
@@ -422,13 +396,9 @@ const CreateAccountPage = ({ onSwitchToLogin, handleAuthSuccess }) => {
       setCities((prev) => ({ ...prev, [index]: [] }))
       if (value && currentLocation.state) {
         try {
-<<<<<<< HEAD
           const res = await fetch(
             `${API_URL}/api/locations/cities/${encodeURIComponent(currentLocation.state)}/${encodeURIComponent(value)}`
           )
-=======
-          const res = await fetch(`/api/locations/cities/${currentLocation.state}/${value}`)
->>>>>>> 094577356ad464c43002570066975adc57e46fb2
           if (!res.ok) throw new Error("Failed to fetch cities")
           const data = await res.json()
           setCities((prev) => ({ ...prev, [index]: data || [] }))
@@ -509,58 +479,33 @@ const CreateAccountPage = ({ onSwitchToLogin, handleAuthSuccess }) => {
     const loginPayload = { email: formData.email, password: formData.password }
 
     try {
-<<<<<<< HEAD
       const registerResponse = await fetch(`${API_URL}/api/auth/register`, {
-=======
-      const registerResponse = await fetch(`/api/auth/register`, {
->>>>>>> 094577356ad464c43002570066975adc57e46fb2
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(registrationPayload),
       })
-<<<<<<< HEAD
       if (!registerResponse.ok) {
         const message = await getApiErrorMessage(registerResponse, "An error occurred during registration.")
         setApiError(message)
-=======
-      const registerData = await registerResponse.json()
-      if (!registerResponse.ok) {
-        setApiError(registerData.message || "An error occurred during registration.")
->>>>>>> 094577356ad464c43002570066975adc57e46fb2
         setIsLoading(false)
         return
       }
 
-<<<<<<< HEAD
       const loginResponse = await fetch(`${API_URL}/api/auth/login`, {
-=======
-      const loginResponse = await fetch(`/api/auth/login`, {
->>>>>>> 094577356ad464c43002570066975adc57e46fb2
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(loginPayload),
       })
-<<<<<<< HEAD
-=======
-      const loginData = await loginResponse.json()
->>>>>>> 094577356ad464c43002570066975adc57e46fb2
       if (!loginResponse.ok) {
         setApiError("Account created! Please log in.")
         onSwitchToLogin()
       } else {
-<<<<<<< HEAD
         const loginData = await loginResponse.json()
-=======
->>>>>>> 094577356ad464c43002570066975adc57e46fb2
         handleAuthSuccess(loginData)
       }
     } catch (error) {
       console.error("Registration or Login process failed:", error)
-<<<<<<< HEAD
       setApiError(BACKEND_UNAVAILABLE_MESSAGE)
-=======
-      setApiError("Could not connect to the server. Please try again.")
->>>>>>> 094577356ad464c43002570066975adc57e46fb2
     } finally {
       setIsLoading(false)
     }
