@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "target": "ESNext",
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"]
+    },
+    "allowJs": true
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+, "components/ui/avatar.jsx", "app/(main)/report/page.jsx", "app/(main)/profile/page.jsx", "app/(main)/page.jsx", "app/(main)/report/page.jsx", "app/(main)/page.jsx", "app/(main)/layout.jsx", "app/auth/page.jsx", "components/auth-system.jsx", "app/layout.jsx", "components/LocationSelectorMap.jsx", "components/Map.jsx", "components/Map.jsx", "components/mapIcon.js", "hooks/use-toast.js", "lib/utils.js", "lib/config.js", "lib/profileApi.js", "lib/geocode.js", "lib/contributionApi.js", "components/VolunteerButton.jsx", "components/theme-provider.jsx", "components/theme-provider.jsx", "components/LocationSelectorMap.jsx", "components/header.jsx", "components/footer.jsx", "app/(main)/contributions/page.jsx", "app/(main)/contributions/page.jsx", "components/ui/toast.jsx", "components/ui/textarea.jsx", "components/ui/tabs.jsx", "components/ui/switch.jsx", "components/ui/skeleton.jsx", "components/ui/sheet.jsx", "components/ui/separator.jsx", "components/ui/select.jsx", "components/ui/progress.jsx", "components/ui/label.jsx", "components/ui/input.jsx", "components/ui/dialog.jsx", "components/ui/card.jsx", "components/ui/button.jsx", "components/ui/badge.jsx"  ],
+  "exclude": [
+    "node_modules",
+    "backend"   
+  ]
+}
