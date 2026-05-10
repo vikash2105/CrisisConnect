@@ -15,8 +15,11 @@ import { Footer } from "@/components/footer.jsx"
 import { AlertTriangle, Upload, MapPin, Loader2, CheckCircle, Camera, ArrowLeft, Mic, Clock } from "lucide-react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
+<<<<<<< HEAD
 import { API_URL } from "@/lib/config"
 import { getApiErrorMessage, getNetworkErrorMessage } from "@/lib/apiError"
+=======
+>>>>>>> 094577356ad464c43002570066975adc57e46fb2
 
 // Dynamically import LocationSelectorMap
 const LocationSelectorMap = dynamic(() => import("@/components/LocationSelectorMap.jsx"), {
@@ -192,6 +195,10 @@ export default function ReportPage() {
       dataToSubmit.append("coordinates", JSON.stringify(coordinates))
       if (formData.media) dataToSubmit.append("media", formData.media)
 
+<<<<<<< HEAD
+=======
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
+>>>>>>> 094577356ad464c43002570066975adc57e46fb2
       const response = await fetch(`${API_URL}/api/incidents`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -199,7 +206,12 @@ export default function ReportPage() {
       })
 
       if (!response.ok) {
+<<<<<<< HEAD
         throw new Error(await getApiErrorMessage(response, "Failed to submit the report."))
+=======
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to submit the report.")
+>>>>>>> 094577356ad464c43002570066975adc57e46fb2
       }
 
       setIsSuccess(true)
@@ -210,7 +222,11 @@ export default function ReportPage() {
     } catch (error) {
       toast({
         title: "Submission Failed",
+<<<<<<< HEAD
         description: getNetworkErrorMessage(error, "An unexpected error occurred."),
+=======
+        description: error?.message || "An unexpected error occurred.",
+>>>>>>> 094577356ad464c43002570066975adc57e46fb2
         variant: "destructive",
       })
     } finally {

@@ -20,6 +20,7 @@ const { apiLimiter, authLimiter, incidentLimiter } = require("./middleware/rateL
 const app = express();
 const server = http.createServer(app);
 
+<<<<<<< HEAD
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
@@ -54,11 +55,23 @@ const corsOptions = {
   },
   credentials: true,
 };
+=======
+// ✅ Environment Variables
+const PORT = process.env.PORT || 5000;
+const MONGO_URI = process.env.MONGO_URI;
+
+// ✅ FRONTEND URL (IMPORTANT for Vercel)
+const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
+>>>>>>> 094577356ad464c43002570066975adc57e46fb2
 
 // ================= SOCKET.IO SETUP =================
 const io = new Server(server, {
   cors: {
+<<<<<<< HEAD
     origin: allowedOrigins,
+=======
+    origin: CLIENT_URL,
+>>>>>>> 094577356ad464c43002570066975adc57e46fb2
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -69,6 +82,7 @@ app.set("io", io);
 
 // ================= MIDDLEWARE =================
 app.use(express.json());
+<<<<<<< HEAD
 app.use(cors(corsOptions));
 
 app.use((req, res, next) => {
@@ -88,6 +102,16 @@ app.get("/", (req, res) => {
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK" });
 });
+=======
+
+// ✅ Proper CORS setup
+app.use(
+  cors({
+    origin: CLIENT_URL,
+    credentials: true,
+  })
+);
+>>>>>>> 094577356ad464c43002570066975adc57e46fb2
 
 // ================= RATE LIMITING =================
 app.use("/api", apiLimiter);
@@ -100,6 +124,7 @@ app.use("/api/user-locations", userLocationRoutes);
 app.use("/api/contributions", contributionRoutes);
 app.use("/api/profile", profileRoutes);
 
+<<<<<<< HEAD
 // ================= ERROR HANDLING =================
 app.use((err, req, res, next) => {
   console.error(`[API] ${req.method} ${req.originalUrl} error:`, err.message);
@@ -109,14 +134,34 @@ app.use((err, req, res, next) => {
   }
 
   return res.status(500).json({ message: "Server error" });
+=======
+// ================= HEALTH CHECK =================
+app.get("/", (req, res) => {
+  res.send("CrisisConnect server is running 🚀");
+});
+
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "OK",
+    uptime: process.uptime(),
+    timestamp: new Date(),
+  });
+>>>>>>> 094577356ad464c43002570066975adc57e46fb2
 });
 
 // ================= SOCKET CONNECTION =================
 io.on("connection", (socket) => {
+<<<<<<< HEAD
   console.log("[Socket] User connected:", socket.id);
 
   socket.on("disconnect", () => {
     console.log("[Socket] User disconnected:", socket.id);
+=======
+  console.log("🔌 User connected:", socket.id);
+
+  socket.on("disconnect", () => {
+    console.log("❌ User disconnected:", socket.id);
+>>>>>>> 094577356ad464c43002570066975adc57e46fb2
   });
 });
 
@@ -124,6 +169,7 @@ io.on("connection", (socket) => {
 async function startServer() {
   try {
     if (!MONGO_URI) {
+<<<<<<< HEAD
       throw new Error("MONGO_URI is missing. Set it in the Render environment before starting the server.");
     }
 
@@ -147,3 +193,27 @@ async function startServer() {
 }
 
 startServer();
+=======
+      console.warn("⚠️ No MongoDB URI provided. Running without DB.");
+    } else {
+      await mongoose.connect(MONGO_URI);
+      console.log("✅ MongoDB connected successfully");
+    }
+
+    server.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`🌐 Allowed origin: ${CLIENT_URL}`);
+      console.log(`⚡ WebSocket server ready`);
+    });
+  } catch (err) {
+    console.error("❌ MongoDB connection failed:", err.message);
+    console.warn("⚠️ Starting server without DB connection");
+
+    server.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+    });
+  }
+}
+
+startServer();
+>>>>>>> 094577356ad464c43002570066975adc57e46fb2
